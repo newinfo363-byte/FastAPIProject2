@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Health Details App</title>
@@ -84,7 +84,36 @@
     </div>
 
     <script>
+        // Set this to your actual deployed backend URL
+        // If testing locally (both frontend and backend on localhost:8000), leave as ''
+        // If frontend is on Vercel and backend is elsewhere (e.g. Render), put backend URL here like:
+        // const BASE_URL = 'https://your-backend-service.onrender.com';
+        const BASE_URL = '';
+
         function readInput(id) { const v = document.getElementById(id).value; return v === '' ? null : v }
+
+        // Helper to parse response safely (JSON when possible, otherwise text)
+        function parseResponseSafely(res) {
+            const contentType = res.headers.get('content-type') || '';
+            if (!res.ok) {
+                // try to get text body for better diagnostics
+                return res.text().then(text => {
+                    throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
+                });
+            }
+            if (contentType.includes('application/json')) {
+                return res.json();
+            }
+            // fallback: return text if not JSON
+            return res.text().then(text => {
+                try {
+                    // try JSON.parse in case server sent JSON without proper header
+                    return JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Server returned non-JSON response: ' + text);
+                }
+            });
+        }
 
         function sendData() {
             const payload = {
@@ -103,15 +132,15 @@
                 return;
             }
 
-            fetch('/submit', {
+            fetch(BASE_URL + '/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
+            .then(parseResponseSafely)
             .then(data => {
                 document.getElementById('msg').innerText = data.message || 'Saved';
-                // clear form except keep notes maybe
+                // clear form
                 document.getElementById('name').value = '';
                 document.getElementById('email').value = '';
                 document.getElementById('age').value = '';
@@ -121,12 +150,14 @@
                 document.getElementById('notes').value = '';
                 loadEntries();
             })
-            .catch(err => document.getElementById('msg').innerText = 'Error saving: ' + err);
+            .catch(err => {
+                document.getElementById('msg').innerText = 'Error saving: ' + err.message;
+            });
         }
 
         function loadEntries() {
-            fetch('/entries')
-            .then(res => res.json())
+            fetch(BASE_URL + '/entries')
+            .then(parseResponseSafely)
             .then(data => {
                 const list = document.getElementById('entries');
                 list.innerHTML = '';
@@ -142,7 +173,7 @@
                 });
             })
             .catch(err => {
-                document.getElementById('entries').innerHTML = '<li>Error loading entries</li>';
+                document.getElementById('entries').innerHTML = '<li>Error loading entries: ' + err.message + '</li>';
             });
         }
 
@@ -151,12 +182,12 @@
             const age = readInput('search_age') ? Number(readInput('search_age')) : null;
             const body = { name: name, age: age };
 
-            fetch('/search', {
+            fetch(BASE_URL + '/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             })
-            .then(res => res.json())
+            .then(parseResponseSafely)
             .then(results => {
                 const out = document.getElementById('search_results');
                 out.innerHTML = '';
@@ -175,7 +206,7 @@
                 });
             })
             .catch(err => {
-                document.getElementById('search_results').innerHTML = '<div class="small">Error searching records</div>';
+                document.getElementById('search_results').innerHTML = '<div class="small">Error searching records: ' + err.message + '</div>';
             });
         }
 
