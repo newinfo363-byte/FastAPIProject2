@@ -1,0 +1,23 @@
+[
+    {
+        "name": "Test User 2",
+        "email": "test2@example.com"
+    },
+    {
+        "name": "harshith",
+        "email": "harshithm140@gmail.com"
+    },
+    {
+        "name": "harshith",
+        "email": "harshithm140@gmail.com"
+    },
+    {
+        "name": "harshith",
+        "email": "harshithm140@gmail.com",
+        "age": 33,
+        "weight": 80.0,
+        "height": 174.0,
+        "blood_pressure": "120",
+        "notes": "he suffering from hair losses"
+    }
+]

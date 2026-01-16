@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Health Details App</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 12px; color: #222; }
+        h1, h2 { color: #2c3e50 }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+        label { display:block; margin-top:8px; font-weight:600 }
+        input, textarea { width:100%; padding:8px; margin-top:6px; border:1px solid #ddd; border-radius:6px }
+        .row { display:flex; gap:12px }
+        .row > div { flex:1 }
+        button { background:#007bff; color:white; border:none; padding:10px 14px; border-radius:6px; cursor:pointer }
+        button.secondary { background:#6c757d }
+        ul { padding-left: 18px }
+        .small { font-size:0.9rem; color:#555 }
+        .result-item { padding:8px; border-bottom:1px solid #f0f0f0 }
+    </style>
+</head>
+<body>
+    <h1>Health Details App</h1>
+
+    <div class="card">
+        <h2>Enter Details 📝</h2>
+        <div>
+            <label for="name">Name</label>
+            <input type="text" id="name" placeholder="Full name">
+
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Email address">
+
+            <div class="row">
+                <div>
+                    <label for="age">Age</label>
+                    <input type="number" id="age" min="0" placeholder="Age (years)">
+                </div>
+                <div>
+                    <label for="weight">Weight (kg)</label>
+                    <input type="number" step="0.1" id="weight" placeholder="e.g. 70.5">
+                </div>
+                <div>
+                    <label for="height">Height (cm)</label>
+                    <input type="number" step="0.1" id="height" placeholder="e.g. 175">
+                </div>
+            </div>
+
+            <label for="bp">Blood pressure</label>
+            <input type="text" id="bp" placeholder="e.g. 120/80">
+
+            <label for="notes">Notes / Medical details</label>
+            <textarea id="notes" rows="3" placeholder="Any additional info"></textarea>
+
+            <div style="margin-top:12px; display:flex; gap:8px">
+                <button onclick="sendData()">Submit 🚀</button>
+                <button class="secondary" onclick="loadEntries()">Refresh List 🔄</button>
+            </div>
+
+            <p id="msg" class="small"></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Search / Retrieve</h2>
+        <p class="small">Enter name (partial allowed) and/or age to find matching records.</p>
+        <div class="row">
+            <div>
+                <input type="text" id="search_name" placeholder="Name (partial allowed)">
+            </div>
+            <div>
+                <input type="number" id="search_age" placeholder="Age (exact)">
+            </div>
+            <div style="flex:0">
+                <button onclick="search()">Search 🔍</button>
+            </div>
+        </div>
+
+        <div id="search_results" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+        <h2>All Stored Entries</h2>
+        <ul id="entries"></ul>
+    </div>
+
+    <script>
+        function readInput(id) { const v = document.getElementById(id).value; return v === '' ? null : v }
+
+        function sendData() {
+            const payload = {
+                name: readInput('name'),
+                email: readInput('email'),
+                age: readInput('age') ? Number(readInput('age')) : null,
+                weight: readInput('weight') ? Number(readInput('weight')) : null,
+                height: readInput('height') ? Number(readInput('height')) : null,
+                blood_pressure: readInput('bp'),
+                notes: readInput('notes')
+            };
+
+            // Basic validation
+            if (!payload.name || !payload.email) {
+                document.getElementById('msg').innerText = 'Please provide at least name and email.';
+                return;
+            }
+
+            fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('msg').innerText = data.message || 'Saved';
+                // clear form except keep notes maybe
+                document.getElementById('name').value = '';
+                document.getElementById('email').value = '';
+                document.getElementById('age').value = '';
+                document.getElementById('weight').value = '';
+                document.getElementById('height').value = '';
+                document.getElementById('bp').value = '';
+                document.getElementById('notes').value = '';
+                loadEntries();
+            })
+            .catch(err => document.getElementById('msg').innerText = 'Error saving: ' + err);
+        }
+
+        function loadEntries() {
+            fetch('/entries')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('entries');
+                list.innerHTML = '';
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<li>No entries yet.</li>';
+                    return;
+                }
+                data.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'result-item';
+                    li.textContent = `${item.name || ''} — ${item.age !== undefined && item.age !== null ? item.age + 'y' : 'age N/A'} — ${item.email || ''}`;
+                    list.appendChild(li);
+                });
+            })
+            .catch(err => {
+                document.getElementById('entries').innerHTML = '<li>Error loading entries</li>';
+            });
+        }
+
+        function search() {
+            const name = readInput('search_name');
+            const age = readInput('search_age') ? Number(readInput('search_age')) : null;
+            const body = { name: name, age: age };
+
+            fetch('/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            .then(res => res.json())
+            .then(results => {
+                const out = document.getElementById('search_results');
+                out.innerHTML = '';
+                if (!results || results.length === 0) {
+                    out.innerHTML = '<div class="small">No records found</div>';
+                    return;
+                }
+                results.forEach(item => {
+                    const d = document.createElement('div');
+                    d.className = 'result-item';
+                    d.innerHTML = `<strong>${item.name || '—'}</strong> <span class="small">${item.age ? item.age + 'y' : ''}</span><br>
+                                   <span class="small">Email: ${item.email || '—'}</span><br>
+                                   <span class="small">Weight: ${item.weight || '—'} kg • Height: ${item.height || '—'} cm • BP: ${item.blood_pressure || '—'}</span><br>
+                                   <em class="small">${item.notes || ''}</em>`;
+                    out.appendChild(d);
+                });
+            })
+            .catch(err => {
+                document.getElementById('search_results').innerHTML = '<div class="small">Error searching records</div>';
+            });
+        }
+
+        // Load entries on load
+        window.addEventListener('DOMContentLoaded', loadEntries);
+    </script>
+</body>
+</html>
