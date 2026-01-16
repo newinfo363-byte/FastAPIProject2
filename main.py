@@ -5,8 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from typing import Optional, List
+from mangum import Mangum
+import os
 
 app = FastAPI()
+handler = Mangum(app)
 
 # Allow frontend to talk to backend
 app.add_middleware(
@@ -38,13 +41,16 @@ class SearchQuery(BaseModel):
     name: Optional[str] = None
     age: Optional[int] = None
 
-DATA_FILE = "data.json"
+DATA_FILE = "/tmp/data.json" if os.environ.get("VERCEL") else "data.json"
 
 @app.post("/submit")
 def save_data(user: User):
     try:
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
+        if os.path.exists(DATA_FILE):
+             with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+        else:
+             data = []
     except:
         data = []
 
@@ -60,8 +66,11 @@ def save_data(user: User):
 def get_entries():
     """Return the list of stored entries from data.json (empty list if none)."""
     try:
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+        else:
+             data = []
     except:
         data = []
     return data
@@ -70,8 +79,11 @@ def get_entries():
 def search_entries(query: SearchQuery):
     """Return entries matching optional name (case-insensitive substring) and optional exact age."""
     try:
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
+        if os.path.exists(DATA_FILE):
+             with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+        else:
+             data = []
     except:
         data = []
 
