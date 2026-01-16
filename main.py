@@ -20,11 +20,19 @@ app.add_middleware(
 )
 
 # Serve static files from /static (so API routes aren't shadowed)
-app.mount("/static", StaticFiles(directory="."), name="static")
+# Only mount static files if directory exists and NOT running on Vercel
+# (Vercel handles static files via output configuration usually, or root is read-only)
+if not os.environ.get("VERCEL"):
+    app.mount("/static", StaticFiles(directory="."), name="static")
 
 # Serve index.html at root
 @app.get("/")
 def read_index():
+    # If on Vercel, just return a message or handle differently as FileResponse might expect local file
+    if os.environ.get("VERCEL"):
+         if os.path.exists("index.html"):
+             return FileResponse("index.html")
+         return {"message": "Hello from FastAPI on Vercel"}
     return FileResponse("index.html")
 
 # Data model
